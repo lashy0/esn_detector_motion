@@ -71,27 +71,17 @@ def mackey_glass_generate(
     """
     Generate a Mackey-Glass timeseries using the Mackey-Glass delayed differential equation.
 
-    Parameters
-    ----------
-        n_timesteps: int 
-            Number of timesteps to compute.
-        tau: int, optional 
-            Time delay tau of the Mackey-Glass equation.
-        a: float, optional
-            Parameter a of the Mackey-Glass equation.
-        b: float, optional
-            Parameter b of the Mackey-Glass equation.
-        n: int, optional
-            Parameter n of the Mackey-Glass equation.
-        x0: float, optional
-            Initial condition of the timeseries.
-        h: float, optional
-            Time delta between two discrete timesteps.
-        seed: Union[int, RandomState, Generator], optional
-            Random state seed for reproducibility.
+    Args:
+        n_timesteps (int): Number of timesteps to compute.
+        tau (int, optional): Time delay tau of the Mackey-Glass equation.
+        a (float, optional): Parameter a of the Mackey-Glass equation.
+        b (float, optional): Parameter b of the Mackey-Glass equation.
+        n (int, optional): Parameter n of the Mackey-Glass equation.
+        x0 (float, optional): Initial condition of the timeseries.
+        h (float, optional): Time delta between two discrete timesteps.
+        seed (Union[int, RandomState, Generator], optional): Random state seed for reproducibility.
 
-    Returns
-    -------
+    Returns:
         np.ndarray: Mackey-Glass timeseries of shape (n_timesteps, 1).
     """
     
@@ -135,16 +125,11 @@ def plot_mackey_glass(
     """
     Plot the Mackey-Glass timeseries and its phase diagram from a specified starting index.
 
-    Parameters
-    ----------
-        data: np.ndarray
-            The Mackey-Glass timeseries data.
-        tau: int
-            Time delay for the phase diagram.
-        sample: int
-            Number of timesteps to plot.
-        start_index: int, optional
-            Index to start displaying the data from, by default 0.
+    Args:
+        data (np.ndarray): The Mackey-Glass timeseries data.
+        tau (int): Time delay for the phase diagram.
+        sample (int): Number of timesteps to plot.
+        start_index (int, optional): Index to start displaying the data from, by default 0.
     """
     if start_index < 0 or start_index >= len(data):
         raise ValueError(

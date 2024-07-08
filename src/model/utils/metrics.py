@@ -8,13 +8,11 @@ def _to_numpy(y: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
     """
     Convert input array to numpy array.
 
-    Parameters
-    ----------
+    Args:
         y: Union[np.ndarray, torch.Tensor]
             Input array to be converted.
 
-    Returns
-    -------
+    Returns:
         np.ndarray
             Converted numpy array.
     """
@@ -30,15 +28,13 @@ def _check_arrays(
     """
     Check and convert input arrays to numpy arrays.
 
-    Parameters
-    ----------
+    Args:
         y_true: Union[np.ndarray, torch.Tensor]
             Correct target values.
         y_pred: Union[np.ndarray, torch.Tensor]
             Estimated target values.
 
-    Returns
-    -------
+    Returns:
         tuple
             Converted numpy array of y_true and y_pred.
     """
@@ -61,15 +57,13 @@ def mse(
     """
     Compute the Mean Squared Error (MSE) between the ground truth and predicted values.
 
-    Parameters
-    ----------
+    Args:
         y_true: Union[np.ndarray, torch.Tensor]
             Correct target values.
         y_pred: Union[np.ndarray, torch.Tensor]
             Estimated target values.
 
-    Returns
-    -------
+    Returns:
         float
             Mean Squared Error between y_true and y_pred.
     """
@@ -84,15 +78,13 @@ def rmse(
     """
     Compute the Root Mean Squared Error (RMSE) between the ground truth and predicted values.
 
-    Parameters
-    ----------
+    Args:
         y_true: Union[np.ndarray, torch.Tensor]
             Correct target values.
         y_pred: Union[np.ndarray, torch.Tensor]
             Estimated target values.
 
-    Returns
-    -------
+    Returns:
         float
             Root Mean Squared Error between y_true and y_pred.
     """
@@ -108,8 +100,7 @@ def nrmse(
     """
     Compute the Normalized Root Mean Squared Error (NRMSE) between the ground truth and predicted values.
 
-    Parameters
-    ----------
+    Args:
         y_true: Union[np.ndarray, torch.Tensor]
             Correct target values.
         y_pred: Union[np.ndarray, torch.Tensor]
@@ -119,8 +110,7 @@ def nrmse(
         norm_value: float, optional
             A normalization factor.
 
-    Returns
-    -------
+    Returns:
         float
             Normalized Root Mean Squared Error between y_true and y_pred.
     """
@@ -152,15 +142,13 @@ def rsquare(
     """
     Compute the R-squared (coefficient of determination) regression score function.
 
-    Parameters
-    ----------
+    Args:
         y_true: Union[np.ndarray, torch.Tensor]
             Correct target values.
         y_pred: Union[np.ndarray, torch.Tensor]
             Estimated target values.
 
-    Returns
-    -------
+    Returns:
         float
             R-squared score.
     """
