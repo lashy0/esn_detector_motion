@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from model.utils.metrics import mse, rmse, nrmse, rsquare, _to_numpy, _check_arrays
+from utils.metrics import mse, rmse, nrmse, rsquare, _to_numpy, _check_arrays
 
 
 def test_to_numpy():
