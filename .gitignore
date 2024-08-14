@@ -87,7 +87,3 @@ venv.bak/
 .ruff_cache/
 
 ###
-
-# All directories in data
-resources/
-*.avi
