@@ -4,6 +4,10 @@ import numpy as np
 
 from typing import List, Tuple, Dict
 
+from model import ESN
+from utils import mse
+from utils.buffer import FixedBuffer
+
 
 class MotionDetector:
     ALLOWED_ROI_ALGOS = ["inrange", "contours"]
@@ -12,10 +16,16 @@ class MotionDetector:
         self,
         lower_bound: np.ndarray,
         upper_bound: np.ndarray,
+        model: ESN,
         min_area: int = 1000,
         roi_algo: str = "inrange",
         contours_coords: List[List[int]] = [[0, 0]],
-        cnt_zones: int = 10
+        cnt_zones: int = 10,
+        size_data_history: int = 90,
+        size_error_history: int = 50,
+        size_anomaly_history: int = 10,
+        score_threshold: float = 0.5,
+        factor: float = 3.0
     ) -> None:
         if not isinstance(lower_bound, np.ndarray) or not isinstance(upper_bound, np.ndarray):
             raise TypeError("lower_bound and upper_bound must be of type np.ndarray")
@@ -40,7 +50,19 @@ class MotionDetector:
         self.contours_coords = np.array(contours_coords, dtype=np.int32)
         self.cnt_zones = cnt_zones
         
+        # Parametrs preprocess frame
         self.previous_frame = None
+        
+        self.buffer_data = FixedBuffer(size_data_history)
+        self.buffer_error = FixedBuffer(size_error_history)
+        self.buffer_anomaly = FixedBuffer(size_anomaly_history)
+        
+        self.model = model
+        self.model_train = False
+        
+        self.score_threshold = score_threshold
+        self.adaptive_threshold = 0
+        self.factor = factor
     
     def detect(self, frame: np.ndarray) -> bool:
         """
@@ -61,6 +83,16 @@ class MotionDetector:
         self.cnt_frames += 1
         
         # Код обработки
+        data_zones = self.__preprocess_frame(frame)
+        if data_zones:
+            self.buffer_data.add(data_zones)
+        
+        if self.buffer_data.is_full():
+            if not self.model_train:
+                self.__train_esn()
+                self.model_train = True
+            else:
+                res = self.__detect_anomaly()
         
         return res
     
@@ -68,6 +100,9 @@ class MotionDetector:
         """Reset the ROI found status."""
         self.roi_found = False
         self.cnt_frames = 0
+        
+        self.model_train = False
+        self.model.reset_reservoir()
     
     def is_roi_found(self) -> bool:
         """
@@ -77,6 +112,48 @@ class MotionDetector:
             bool: True if ROI is found, otherwise False.
         """
         return self.roi_found
+    
+    def __train_esn(self) -> None:
+        """Train the ESN using the buffered data."""
+        data = torch.tensor(self.buffer_data.get_buffer(), dtype=torch.float32)
+        x = data[:-1]
+        y = data[1:]
+        self.model.fit(x, y, 1e-4)
+    
+    def __detect_anomaly(self) -> bool:
+        """Detect anomaly in the data using the trained ESN.
+
+        Returns:
+            bool: True if an anomaly is detected, otherwise False.
+        """
+        x = torch.tensor(self.buffer_data.get_value(-2), dtype=torch.float32).unsqueeze(0)
+        y = torch.tensor(self.buffer_data.get_value(-1), dtype=torch.float32).unsqueeze(0)
+        predict, _ = self.model(x)
+        predict = predict.detach().numpy()
+        
+        error = mse(y, predict)
+        self.buffer_error.add(error)
+        
+        self.model.update_redaut_lms(x, y, 0.01)
+        
+        if self.buffer_error.get_current_size() < self.buffer_error.size // 2:
+            return False
+        
+        self.__update_treshold()
+        anom = error > self.adaptive_threshold        
+        self.buffer_anomaly.add(anom)
+        
+        score = np.mean(self.buffer_anomaly.get_buffer())
+        
+        return score > self.score_threshold
+    
+    def __update_treshold(self) -> float:
+        errors = np.array(self.buffer_error.get_buffer())
+        
+        mean_error = np.mean(errors)
+        std_error = np.std(errors)
+        
+        self.adaptive_treshold = mean_error + self.factor * std_error
     
     def __preprocess_frame(self, frame: np.ndarray) -> List[float]:
         """
@@ -98,28 +175,31 @@ class MotionDetector:
         """
         features = []
         
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray_frame = cv2.GaussianBlur(gray_frame, (21, 21), 0)
-        
-        if self.previous_frame is None:
-            self.previous_frame = gray_frame
-            return features
-        
-        frame_diff = cv2.absdiff(self.previous_frame, gray_frame)
-        
-        _, motion_mask = cv2.threshold(frame_diff, 25, 255, cv2.THRESH_BINARY)
-        
-        self.previous_frame = gray_frame
-        
         for zone in self.zones:
             if "roi_mask" not in zone:
                 features.append(0)
                 continue
             
             x, y, w, h = zone["roi_rect"]
+            mask = zone["roi_mask"]
             
-            roi = motion_mask[y : y + h, x : x + w]
-            motion_value = np.sum(roi) / 255
+            roi = frame[y : y + h, x : x + w]
+            roi = cv2.bitwise_and(roi, roi, mask=mask)
+            roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            
+            if "prew" not in zone:
+                features.append(0)
+                continue
+            
+            diff = cv2.absdiff(roi, zone["prew"])
+            diff = cv2.GaussianBlur(diff, (7, 7), 0)
+            diff = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)[1]
+            
+            flat = diff.flatten()
+            non_zero_value = flat[np.nonzero(flat)]
+            motion_value = np.median(non_zero_value) if non_zero_value.size > 0 else 0.0
+            motion_value = motion_value / 255.0
+            
             features.append(motion_value)
         
         return features
