@@ -10,9 +10,4 @@ The current implementation of MotionDetect does not work well with strong overex
 
 ### An example of the work
 
-<video width="320" height="240" controls>
-  <source src="assets/example.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-
-(https://raw.githubusercontent.com/lashy0/esn_detector_motion/master/assets/video.mp4)
+![](assets/example.gif)
