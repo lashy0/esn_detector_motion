@@ -32,7 +32,10 @@ class Reservoir(nn.Module):
         spectral_radius: float = 0.95,
         leaky_rate: float = 1.0,
         input_scaling: float = 1.0,
+        feedback_scaling: float = 0.5,
         sparsity: float = 0.1,
+        noise: bool = False,
+        noise_level: float = 0.01,
         bias: bool = True,
         random_seed: Optional[int] = None,
         device: Optional[torch.device] = None,
@@ -46,7 +49,10 @@ class Reservoir(nn.Module):
         self.spectral_radius = spectral_radius
         self.leaky_rate = leaky_rate
         self.input_scaling = input_scaling
+        self.feedback_scaling = feedback_scaling
         self.sparsity = sparsity
+        self.noise = noise,
+        self.noise_level = noise_level
         
         if random_seed is not None:
             torch.manual_seed(random_seed)
@@ -82,7 +88,9 @@ class Reservoir(nn.Module):
         if self.b_in is not None:
             nn.init.uniform_(self.b_in, -self.input_scaling, self.input_scaling)
         self._initialize_reservoir_weights()
-        nn.init.normal_(self.W_fb, mean=0, std=1)
+        if self.output_size > 0:
+            # nn.init.normal_(self.W_fb, mean=0, std=1)
+            nn.init.xavier_uniform_(self.W_fb)
     
     def _initialize_reservoir_weights(self) -> None:
         """Initialize the reservoir weight matrix with the desired spectral radius and sparsity."""
@@ -96,13 +104,16 @@ class Reservoir(nn.Module):
         """Reset the state of the reservoir to zeros."""
         self.state.zero_()
     
-    # принимает 1D тензор + прошлый результат 1D тензор для feedback
     def forward(self, X: torch.Tensor, y: Optional[torch.Tensor] = None) -> torch.Tensor:
         pre_state = F.linear(X, self.W_in, self.b_in) + torch.matmul(self.W, self.state)
-        if y is not None:
-            pre_state += torch.matmul(self.W_fb, y)
+        if y is not None and torch.equal(self.W_fb, torch.empty_like(self.W_fb)):
+            pre_state += self.feedback_scaling * torch.matmul(self.W_fb, y)
         
-        self.state = (1.0 - self.leaky_rate) * self.state + self.leaky_rate * F.tanh(pre_state)
+        noise = 0
+        if self.noise:
+            noise = F.tanh(pre_state) * self.noise_level
+        
+        self.state = (1.0 - self.leaky_rate) * self.state + self.leaky_rate * (F.tanh(pre_state) + noise)
         
         return self.state
     

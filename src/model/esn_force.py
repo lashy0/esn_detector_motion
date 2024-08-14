@@ -3,9 +3,10 @@ import torch.nn as nn
 
 from typing import Optional
 
-from .modules import Reservoir, Ridge
+from .modules import Reservoir, Force
 
-class ESNRidge(nn.Module):
+
+class ESNForce(nn.Module):
     def __init__(
         self,
         input_size: int,
@@ -20,6 +21,8 @@ class ESNRidge(nn.Module):
         feedback_scaling: float = 0.1,
         noise: bool = False,
         noise_level: float = 0.01,
+        lambda_: float = 0.99,
+        delta: float = 1,
         random_seed: Optional[int] = None,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None
@@ -46,13 +49,15 @@ class ESNRidge(nn.Module):
             random_seed=random_seed,
             **self.factory_kwargs
         )
-        self.output = Ridge(
+        
+        self.output = Force(
             hidden_size=hidden_size,
             output_size=output_size,
-            bias=bias,
+            lambda_=lambda_,
+            delta=delta,
             **self.factory_kwargs
         )
-    
+        
     def forward(self, X: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         seq_len, _ = X.size()
         
@@ -69,14 +74,20 @@ class ESNRidge(nn.Module):
             results[t, :] = result
         
         return results, outputs
-    
-    def fit(self, X: torch.Tensor, y: torch.Tensor, washout: int = 0, lr: float = 1e-4) -> None:
+
+    def fit(self, X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
         seq_len, _ = X.size()
-        states = torch.zeros((seq_len, self.hidden_size), **self.factory_kwargs)
+        
+        outputs = torch.zeros((seq_len, self.hidden_size), **self.factory_kwargs)
+        results = torch.zeros((seq_len, self.output_size), **self.factory_kwargs)
+        
         for t in range(seq_len):
             if self.feedback:
-                state = self.reservoir(X[t, :], y[t-1, :] if t > 0 else None)
+                state = self.reservoir(X[t, :], results[t-1, :] if t > 0 else None)
             else:
                 state = self.reservoir(X[t, :])
-            states[t, :] = state
-        self.output.fit(states, y, washout, lr)
+            outputs[t, :] = state
+            pred = self.output.fit(state, Y[t, :])
+            results[t, :] = pred
+
+        return results, outputs
